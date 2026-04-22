@@ -3,8 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Curve Beta Pro</title>
+  <title>Curve Beta Maps</title>
   <meta name="theme-color" content="#09090b" />
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
   <style>
     :root{
       --bg:#09090b; --panel:#18181b; --panel-2:#27272a; --border:#3f3f46;
@@ -40,10 +46,6 @@
     .nav button{background:none;color:#71717a;font-size:12px;display:flex;flex-direction:column;align-items:center;gap:4px;padding:4px 0}.nav button.active{color:var(--accent-soft)}.nav .icon{font-size:18px}
     .top-action{width:42px;height:42px;border-radius:16px;display:flex;align-items:center;justify-content:center;border:1px solid #36363d;background:#141418;color:#fff;font-size:18px;flex:0 0 auto}
     .header-left{display:flex;gap:12px;align-items:flex-start}
-    .map-box{margin-top:14px;height:220px;border-radius:22px;background:#0f0f12;border:1px solid #232329;position:relative;overflow:hidden}
-    .map-box::before{content:"";position:absolute;inset:0;background:radial-gradient(circle at top left, rgba(249,115,22,.30), transparent 35%),radial-gradient(circle at bottom right, rgba(255,255,255,.06), transparent 32%)}
-    .float-label{position:absolute;z-index:2;font-size:12px;border-radius:12px;padding:8px 10px;background:rgba(0,0,0,.42);border:1px solid rgba(255,255,255,.08)}
-    .float-a{top:14px;left:14px}.float-b{right:14px;bottom:14px} svg{position:relative;z-index:1;width:100%;height:100%}
     .highlight-list{display:flex;flex-direction:column;gap:10px;margin-top:14px}.highlight{display:flex;gap:12px;align-items:flex-start;padding:14px;background:#0f0f12;border:1px solid #232329;border-radius:18px}
     .check{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(249,115,22,.18);border:1px solid rgba(249,115,22,.28);color:var(--accent-soft);font-size:12px;font-weight:700;flex:0 0 auto}
     .roadbook{display:flex;flex-direction:column;gap:14px;margin-top:14px}.step{display:flex;gap:12px;align-items:flex-start}.step-col{display:flex;flex-direction:column;align-items:center}
@@ -58,9 +60,11 @@
     .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(6px);z-index:100;display:none;align-items:center;justify-content:center;padding:16px}
     .modal-backdrop.show{display:flex}
     .modal{width:100%;max-width:420px;background:#111114;border:1px solid #2a2a31;border-radius:28px;padding:22px;box-shadow:0 30px 80px rgba(0,0,0,.45)}
-    .modal h2{font-size:24px}
-    .modal p{margin-top:10px;color:#d4d4d8;line-height:1.6;font-size:14px}
-    .modal ul{padding-left:18px;color:#d4d4d8;font-size:14px;line-height:1.7}
+    .modal h2{font-size:24px}.modal p{margin-top:10px;color:#d4d4d8;line-height:1.6;font-size:14px}.modal ul{padding-left:18px;color:#d4d4d8;font-size:14px;line-height:1.7}
+    .leaflet-wrap{margin-top:14px;height:260px;border-radius:22px;overflow:hidden;border:1px solid #232329}
+    .leaflet-wrap.small{height:220px}
+    .leaflet-container{height:100%;width:100%;background:#0f0f12}
+    .leaflet-control-attribution{font-size:10px}
   </style>
 </head>
 <body>
@@ -83,13 +87,13 @@
 
 <div id="onboarding" class="modal-backdrop">
   <div class="modal">
-    <div class="eyebrow">Curve beta pro</div>
+    <div class="eyebrow">Curve beta maps</div>
     <h2>Benvenuto</h2>
-    <p>Questa versione salva i tuoi dati direttamente nel browser.</p>
+    <p>Ora hai una mappa vera nella beta. I tuoi dati restano salvati nel browser.</p>
     <ul>
-      <li>I giri creati restano salvati anche dopo refresh.</li>
-      <li>I preferiti restano nei salvati.</li>
-      <li>Perfetta per una prima beta da mostrare ai tester.</li>
+      <li>Percorsi mostrati su mappa reale.</li>
+      <li>Preferiti e giri creati persistenti.</li>
+      <li>Vista mappa con posizione utente opzionale.</li>
     </ul>
     <div class="btn-grid" style="margin-top:18px">
       <button class="btn secondary" onclick="closeOnboarding()">Chiudi</button>
@@ -98,20 +102,36 @@
   </div>
 </div>
 
+<script
+  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+  crossorigin=""
+></script>
 <script>
-const defaultRoutes=[{id:1,name:"Lago + Passo del Sempione",distance:142,duration:"3h 20m",level:"Medio",region:"Piemonte",type:"Mezza giornata",description:"Un giro panoramico tra lago, salite pulite e curve veloci perfette per una mezza giornata.",shortDescription:"Lago, salita iconica e tante curve pulite.",stops:["Arona","Domodossola","Passo del Sempione"],curves:84,elevation:"+1.640 m",surface:"Asfalto buono",completed:false,favorite:true,highlights:["Panorama sul lago nella prima parte","Salita regolare con curve ampie","Sosta biker-friendly a Domodossola","Arrivo iconico al passo"]},{id:2,name:"Langhe Ride",distance:96,duration:"2h 10m",level:"Facile",region:"Piemonte",type:"Breve",description:"Colline, vigneti e strade scorrevoli. Perfetto per un giro rilassato con sosta pranzo.",shortDescription:"Colline, curve morbide e pranzo nelle Langhe.",stops:["Alba","Barolo","La Morra"],curves:49,elevation:"+620 m",surface:"Ottimo",completed:true,favorite:false,highlights:["Strade super scorrevoli","Paesaggi da contenuto social","Perfetto per gruppi misti"]},{id:3,name:"Curve sul Garda",distance:178,duration:"4h 05m",level:"Esperto",region:"Lombardia",type:"Giornata intera",description:"Vista lago, tornanti e tratti tecnici: uno dei giri più iconici da fare in moto.",shortDescription:"Vista lago e tornanti veri.",stops:["Desenzano","Riva del Garda","Limone"],curves:112,elevation:"+1.210 m",surface:"Buono",completed:false,favorite:true,highlights:["Vista lago costante","Road feeling più tecnico","Perfetto per uscita premium"]}];
+const defaultRoutes=[
+  {id:1,name:"Lago + Passo del Sempione",distance:142,duration:"3h 20m",level:"Medio",region:"Piemonte",type:"Mezza giornata",description:"Un giro panoramico tra lago, salite pulite e curve veloci perfette per una mezza giornata.",shortDescription:"Lago, salita iconica e tante curve pulite.",stops:["Arona","Domodossola","Passo del Sempione"],coords:[[45.7586,8.5585],[46.1150,8.2936],[46.2477,8.0296]],curves:84,elevation:"+1.640 m",surface:"Asfalto buono",completed:false,favorite:true,highlights:["Panorama sul lago nella prima parte","Salita regolare con curve ampie","Sosta biker-friendly a Domodossola","Arrivo iconico al passo"]},
+  {id:2,name:"Langhe Ride",distance:96,duration:"2h 10m",level:"Facile",region:"Piemonte",type:"Breve",description:"Colline, vigneti e strade scorrevoli. Perfetto per un giro rilassato con sosta pranzo.",shortDescription:"Colline, curve morbide e pranzo nelle Langhe.",stops:["Alba","Barolo","La Morra"],coords:[[44.7001,8.0353],[44.6090,7.9420],[44.6370,7.9333]],curves:49,elevation:"+620 m",surface:"Ottimo",completed:true,favorite:false,highlights:["Strade super scorrevoli","Paesaggi da contenuto social","Perfetto per gruppi misti"]},
+  {id:3,name:"Curve sul Garda",distance:178,duration:"4h 05m",level:"Esperto",region:"Lombardia",type:"Giornata intera",description:"Vista lago, tornanti e tratti tecnici: uno dei giri più iconici da fare in moto.",shortDescription:"Vista lago e tornanti veri.",stops:["Desenzano","Riva del Garda","Limone"],coords:[[45.4718,10.5354],[45.8850,10.8420],[45.8127,10.7919]],curves:112,elevation:"+1.210 m",surface:"Buono",completed:false,favorite:true,highlights:["Vista lago costante","Road feeling più tecnico","Perfetto per uscita premium"]}
+];
 const suggestionStops=["Lago Maggiore","Domodossola","Passo del Sempione","Barolo","Riva del Garda"];
-const STORAGE_KEY="curve_beta_pro_v1";
+const SUGGESTION_COORDS={
+  "Lago Maggiore":[45.9237,8.6535],
+  "Domodossola":[46.1150,8.2936],
+  "Passo del Sempione":[46.2477,8.0296],
+  "Barolo":[44.6090,7.9420],
+  "Riva del Garda":[45.8850,10.8420],
+  "Milano":[45.4642,9.1900]
+};
+const STORAGE_KEY="curve_beta_maps_v1";
 const screenEls={home:document.getElementById("screen-home"),detail:document.getElementById("screen-detail"),create:document.getElementById("screen-create"),saved:document.getElementById("screen-saved"),map:document.getElementById("screen-map"),profile:document.getElementById("screen-profile")};
+const leafletMaps={};
 
 const state=loadState();
 
 function loadState(){
   try{
     const raw=localStorage.getItem(STORAGE_KEY);
-    if(raw){
-      return JSON.parse(raw);
-    }
+    if(raw) return JSON.parse(raw);
   }catch(e){}
   return {
     routes: defaultRoutes,
@@ -120,28 +140,31 @@ function loadState(){
     filter: "Tutti",
     createStart: "Milano",
     createStops: ["Lago Maggiore","Domodossola","Passo del Sempione"],
-    hasSeenOnboarding: false
+    hasSeenOnboarding: false,
+    userLocation: null
   };
 }
-function persist(){
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+function persist(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+function resetBeta(){ localStorage.removeItem(STORAGE_KEY); location.reload(); }
+function toast(msg){ const el=document.getElementById("toast"); el.textContent=msg; el.classList.add("show"); clearTimeout(window.__toastTimer); window.__toastTimer=setTimeout(()=>el.classList.remove("show"),1800); }
+function go(screen){
+  state.activeScreen=screen; persist();
+  Object.entries(screenEls).forEach(([k,el])=>el.classList.toggle("active",k===screen));
+  document.querySelectorAll(".nav button").forEach(btn=>{ const t=btn.dataset.nav; btn.classList.toggle("active",t===screen||(screen==="detail"&&t==="home")); });
+  render();
+  window.scrollTo({top:0,behavior:"smooth"});
 }
-function resetBeta(){
-  localStorage.removeItem(STORAGE_KEY);
-  location.reload();
-}
-function toast(msg){const el=document.getElementById("toast");el.textContent=msg;el.classList.add("show");clearTimeout(window.__toastTimer);window.__toastTimer=setTimeout(()=>el.classList.remove("show"),1800)}
-function go(screen){state.activeScreen=screen;persist();Object.entries(screenEls).forEach(([k,el])=>el.classList.toggle("active",k===screen));document.querySelectorAll(".nav button").forEach(btn=>{const t=btn.dataset.nav;btn.classList.toggle("active",t===screen||(screen==="detail"&&t==="home"))});render();window.scrollTo({top:0,behavior:"smooth"})}
-function selectRoute(id){state.selectedRouteId=id;persist();go("detail")}
-function selectedRoute(){return state.routes.find(r=>r.id===state.selectedRouteId)||state.routes[0]}
-function toggleFavorite(id){const route=state.routes.find(r=>r.id===id);if(!route)return;route.favorite=!route.favorite;persist();render();toast(route.favorite?"Giro salvato":"Giro rimosso dai salvati")}
+function selectedRoute(){ return state.routes.find(r=>r.id===state.selectedRouteId)||state.routes[0]; }
+function selectRoute(id){ state.selectedRouteId=id; persist(); go("detail"); }
+function toggleFavorite(id){ const route=state.routes.find(r=>r.id===id); if(!route) return; route.favorite=!route.favorite; persist(); render(); toast(route.favorite?"Giro salvato":"Giro rimosso dai salvati"); }
 function addCustomRoute(){
   const stops=[...state.createStops];
-  if(!state.createStart.trim())return toast("Inserisci una partenza");
-  if(stops.length===0)return toast("Aggiungi almeno una tappa");
+  if(!state.createStart.trim()) return toast("Inserisci una partenza");
+  if(stops.length===0) return toast("Aggiungi almeno una tappa");
   const distance=80+stops.length*35;
   const hours=(distance/45).toFixed(1);
-  const route={id:Date.now(),name:`${state.createStart} Adventure`,distance,duration:`${hours}h`,level:stops.length>=4?"Esperto":"Medio",region:"Custom",type:distance>160?"Giornata intera":"Mezza giornata",description:`Percorso creato da te con partenza da ${state.createStart} e ${stops.length} tappe selezionate.`,shortDescription:`Roadbook personalizzato con partenza da ${state.createStart}.`,stops:[state.createStart,...stops],curves:40+stops.length*12,elevation:`+${500+stops.length*200} m`,surface:"Misto",completed:false,favorite:true,highlights:["Percorso creato su misura","Condivisibile con amici","Perfetto per il beta test"]};
+  const coords=[SUGGESTION_COORDS[state.createStart] || [45.4642,9.19], ...stops.map(s=>SUGGESTION_COORDS[s] || [45.4642,9.19])];
+  const route={id:Date.now(),name:`${state.createStart} Adventure`,distance,duration:`${hours}h`,level:stops.length>=4?"Esperto":"Medio",region:"Custom",type:distance>160?"Giornata intera":"Mezza giornata",description:`Percorso creato da te con partenza da ${state.createStart} e ${stops.length} tappe selezionate.`,shortDescription:`Roadbook personalizzato con partenza da ${state.createStart}.`,stops:[state.createStart,...stops],coords,curves:40+stops.length*12,elevation:`+${500+stops.length*200} m`,surface:"Misto",completed:false,favorite:true,highlights:["Percorso creato su misura","Condivisibile con amici","Perfetto per il beta test"]};
   state.routes.unshift(route);
   state.selectedRouteId=route.id;
   persist();
@@ -149,27 +172,126 @@ function addCustomRoute(){
   go("detail");
 }
 function routeCard(route){return `<article class="card"><div class="hero card" style="margin:-16px -16px 16px; border:none; border-radius:24px 24px 0 0; box-shadow:none;"><div style="width:100%;" class="row"><div><span class="chip">${route.level}</span><h3 style="margin-top:12px; font-size:22px;">${route.name}</h3><p class="subtitle" style="color:#d4d4d8;">${route.shortDescription}</p></div><button class="top-action" onclick="toggleFavorite(${route.id})">${route.favorite?"♥":"♡"}</button></div></div><div class="metrics"><div class="metric"><div class="label">Distanza</div><div class="value">${route.distance} km</div></div><div class="metric"><div class="label">Durata</div><div class="value">${route.duration}</div></div><div class="metric"><div class="label">Curve</div><div class="value">${route.curves}</div></div></div><p class="desc">${route.description}</p><div class="tag-list">${route.stops.map(stop=>`<span class="tag">${stop}</span>`).join("")}</div><div class="btn-grid"><button class="btn primary" onclick="selectRoute(${route.id})">Apri giro</button><button class="btn secondary" onclick="toggleFavorite(${route.id})">${route.favorite?"Rimuovi":"Salva"}</button></div></article>`}
-function renderHome(){const filters=["Tutti","Breve","Mezza giornata","Giornata intera"];const filtered=state.filter==="Tutti"?state.routes:state.routes.filter(r=>r.type===state.filter);const favorites=state.routes.filter(r=>r.favorite).length;screenEls.home.innerHTML=`<div class="header"><div class="row"><div><div class="eyebrow">Curve</div><div class="title">Trova il tuo prossimo giro</div><div class="subtitle">Percorsi pensati per chi vive la moto davvero</div></div><div class="top-action" style="background:rgba(249,115,22,.12); border-color:rgba(249,115,22,.25)">🏍️</div></div></div><div class="content"><div class="card"><div class="row" style="align-items:flex-start"><div><p style="color:var(--muted); font-size:14px;">Vicino a te</p><h2 style="margin-top:6px; font-size:22px;">Giri consigliati per oggi</h2></div><span class="badge">● Beta live</span></div><div class="pill-row" style="margin-top:14px;">${filters.map(f=>`<button class="pill ${state.filter===f?"active":""}" onclick="setFilter('${f}')">${f}</button>`).join("")}</div></div>${filtered.map(routeCard).join("")}<div class="stat-grid"><div class="card"><p style="font-size:14px; color:var(--muted)">I tuoi numeri</p><p style="margin-top:10px; font-size:32px; font-weight:800;">${state.routes.filter(r=>r.completed).reduce((s,r)=>s+r.distance,0)}</p><p class="small-note">km completati</p></div><div class="card"><p style="font-size:14px; color:var(--muted)">Salvati</p><p style="margin-top:10px; font-size:32px; font-weight:800;">${favorites}</p><p class="small-note">giri nei preferiti</p></div></div></div>`}
-function renderDetail(){const route=selectedRoute();screenEls.detail.innerHTML=`<div class="header"><div class="header-left"><button class="top-action" onclick="go('home')">←</button><div><div class="eyebrow">Dettaglio giro</div><div class="title">${route.name}</div><div class="subtitle">${route.region} • ${route.type}</div></div></div></div><div class="content"><div class="route-hero card"><div><span class="chip">${route.level}</span><span class="chip">${route.curves} curve</span><span class="chip">${route.distance} km</span><h2 style="margin-top:12px; font-size:26px;">${route.name}</h2><p class="subtitle" style="color:#e4e4e7;">${route.shortDescription}</p></div></div><div class="metrics two"><div class="metric"><div class="label">Distanza</div><div class="value">${route.distance} km</div></div><div class="metric"><div class="label">Durata</div><div class="value">${route.duration}</div></div><div class="metric"><div class="label">Dislivello</div><div class="value">${route.elevation}</div></div><div class="metric"><div class="label">Fondo</div><div class="value">${route.surface}</div></div></div><div class="card"><p style="font-size:14px; color:var(--muted)">Mappa del giro</p><h3 style="margin-top:6px; font-size:20px;">Tracciato completo</h3><div class="map-box"><div class="float-label float-a">Partenza</div><div class="float-label float-b">Arrivo</div><svg viewBox="0 0 300 180" preserveAspectRatio="none"><path d="M25 145 C60 120, 65 90, 100 95 S150 150, 180 120 S230 55, 275 70" fill="none" stroke="#f97316" stroke-width="7" stroke-linecap="round"></path><circle cx="25" cy="145" r="7" fill="#ffffff"></circle><circle cx="155" cy="138" r="6" fill="#d4d4d8"></circle><circle cx="275" cy="70" r="8" fill="#f97316"></circle></svg></div></div><div class="card"><p style="font-size:14px; color:var(--muted)">Descrizione</p><p class="desc">${route.description}</p></div><div class="card"><p style="font-size:14px; color:var(--muted)">Punti forti</p><div class="highlight-list">${route.highlights.map(item=>`<div class="highlight"><div class="check">✓</div><div style="line-height:1.55; color:#d4d4d8; font-size:14px;">${item}</div></div>`).join("")}</div></div><div class="card"><p style="font-size:14px; color:var(--muted)">Tappe</p><h3 style="margin-top:6px; font-size:20px;">Roadbook rapido</h3><div class="roadbook">${route.stops.map((stop,index)=>`<div class="step"><div class="step-col"><div class="step-num">${index+1}</div>${index!==route.stops.length-1?`<div class="step-line"></div>`:``}</div><div class="step-box"><div style="font-weight:700;">${stop}</div><div class="small-note">Tappa del percorso</div></div></div>`).join("")}</div></div><div class="btn-grid three"><button class="btn primary" onclick="markCompleted(${route.id})">Completato</button><button class="btn secondary" onclick="toggleFavorite(${route.id})">${route.favorite?"Salvato":"Salva"}</button><button class="btn secondary" onclick="toast('Link giro condiviso')">Condividi</button></div></div>`}
-function renderCreate(){const dist=80+state.createStops.length*35;const hrs=(dist/45).toFixed(1);screenEls.create.innerHTML=`<div class="header"><div><div class="eyebrow">Crea giro</div><div class="title">Costruisci percorso</div><div class="subtitle">Partenza, tappe e condivisione</div></div></div><div class="content"><div class="card"><p style="font-size:14px; color:var(--muted)">Partenza</p><input id="start-input" value="${escapeHtml(state.createStart)}" placeholder="Inserisci partenza" /></div><div class="card"><p style="font-size:14px; color:var(--muted)">Aggiungi tappa</p><h3 style="margin-top:6px; font-size:20px;">Roadmap del giro</h3><div class="inline-form" style="margin-top:14px;"><input id="stop-input" placeholder="Es. Barolo" /><button class="btn primary" onclick="addStop()">Aggiungi</button></div><div class="suggestions">${suggestionStops.map(s=>`<button class="suggestion" onclick="fillStop('${s}')">${s}</button>`).join("")}</div><div class="stop-list" style="margin-top:14px;">${state.createStops.map((stop,i)=>`<div class="stop-item"><div><div style="font-weight:700">${stop}</div><div class="small-note">Tappa ${i+1}</div></div><div style="display:flex; gap:6px;"><button class="top-action" style="width:36px;height:36px;border-radius:12px;" onclick="moveStop(${i},-1)">↑</button><button class="top-action" style="width:36px;height:36px;border-radius:12px;" onclick="moveStop(${i},1)">↓</button><button class="top-action" style="width:36px;height:36px;border-radius:12px;" onclick="removeStop(${i})">×</button></div></div>`).join("")}</div></div><div class="card"><p style="font-size:14px; color:var(--muted)">Anteprima percorso</p><h3 style="margin-top:6px; font-size:20px;">Tracciato stimato</h3><div class="map-box"><div class="float-label float-a">Partenza</div><div class="float-label float-b">Arrivo</div><svg viewBox="0 0 300 180" preserveAspectRatio="none"><path d="M20 150 C60 130, 70 70, 120 95 S180 165, 215 120 S245 75, 280 55" fill="none" stroke="#f97316" stroke-width="7" stroke-linecap="round"></path><circle cx="20" cy="150" r="7" fill="#ffffff"></circle><circle cx="120" cy="95" r="6" fill="#d4d4d8"></circle><circle cx="215" cy="120" r="6" fill="#d4d4d8"></circle><circle cx="280" cy="55" r="8" fill="#f97316"></circle></svg></div></div><div class="card"><p style="font-size:14px; color:var(--muted)">Totale stimato</p><p style="margin-top:10px; font-size:28px; font-weight:800;">~${dist} km • ${hrs}h</p><p class="small-note">Giro perfetto per una ${dist>160?"giornata intera":"mezza giornata"}</p></div><div class="btn-grid"><button class="btn primary" onclick="saveStartAndCreate()">Salva giro</button><button class="btn secondary" onclick="toast('Demo: link condiviso')">Condividi</button></div></div>`;const startInput=document.getElementById("start-input");if(startInput)startInput.addEventListener("input",e=>{state.createStart=e.target.value;persist()})}
-function renderSaved(){const favorites=state.routes.filter(r=>r.favorite);screenEls.saved.innerHTML=`<div class="header"><div><div class="eyebrow">Salvati</div><div class="title">I tuoi giri preferiti</div><div class="subtitle">Pronti da rifare quando vuoi</div></div></div><div class="content">${favorites.length===0?`<div class="card empty"><h3>Nessun giro salvato</h3><p class="subtitle">Salva i tuoi percorsi preferiti dalla home o dal dettaglio.</p></div>`:favorites.map(route=>`<button class="saved-item" onclick="selectRoute(${route.id})"><div style="text-align:left;"><div style="font-size:18px; font-weight:700;">${route.name}</div><div class="small-note">${route.distance} km • ${route.duration} • ${route.region}</div></div><div style="color:var(--accent-soft); font-size:18px;">♥</div></button>`).join("")}</div>`}
-function renderMap(){screenEls.map.innerHTML=`<div class="header"><div><div class="eyebrow">Mappa</div><div class="title">Esplora i giri</div><div class="subtitle">Vista rapida dei percorsi disponibili</div></div></div><div class="content"><div class="card"><div class="map-box" style="margin-top:0; height:260px;"><div class="float-label" style="left:18%; top:62%; background:var(--accent); color:black; border:none;">Sempione</div><div class="float-label" style="left:32%; top:38%; background:var(--accent); color:black; border:none;">Langhe</div><div class="float-label" style="left:62%; top:30%; background:var(--accent); color:black; border:none;">Garda</div></div></div>${state.routes.map(route=>`<button class="map-item" onclick="selectRoute(${route.id})"><div style="text-align:left;"><div style="font-size:18px; font-weight:700;">${route.name}</div><div class="small-note">${route.distance} km • ${route.level} • ${route.region}</div></div><div>→</div></button>`).join("")}</div>`}
-function renderProfile(){const completed=state.routes.filter(r=>r.completed).length;const totalKm=state.routes.filter(r=>r.completed).reduce((sum,r)=>sum+r.distance,0);screenEls.profile.innerHTML=`<div class="header"><div><div class="eyebrow">Profilo</div><div class="title">Fabio</div><div class="subtitle">Rider level: creator mode</div></div></div><div class="content"><div class="card"><div class="row" style="justify-content:flex-start;"><div class="top-action" style="width:64px;height:64px;border-radius:22px;background:rgba(249,115,22,.12);border-color:rgba(249,115,22,.25)">🏍️</div><div><div style="font-size:22px; font-weight:700;">Curve Rider</div><div class="small-note">Creator, esploratore, maniaco dei giri belli</div></div></div></div><div class="metrics two"><div class="metric"><div class="label">Giri completati</div><div class="value" style="font-size:28px;">${completed}</div></div><div class="metric"><div class="label">Km totali</div><div class="value" style="font-size:28px;">${totalKm}</div></div></div><div class="card"><p style="font-size:14px; color:var(--muted)">Beta controls</p><div class="btn-grid" style="margin-top:12px"><button class="btn secondary" onclick="toast('I dati restano salvati nel browser')">Storage attivo</button><button class="btn secondary" onclick="resetBeta()">Reset beta</button></div></div></div>`}
-function setFilter(filter){state.filter=filter;persist();renderHome()}
-function fillStop(stop){const input=document.getElementById("stop-input");if(input)input.value=stop}
-function addStop(){const input=document.getElementById("stop-input");if(!input)return;const value=input.value.trim();if(!value)return toast("Scrivi una tappa");state.createStops.push(value);persist();input.value="";renderCreate();toast("Tappa aggiunta")}
-function removeStop(index){state.createStops.splice(index,1);persist();renderCreate()}
-function moveStop(index,dir){const target=index+dir;if(target<0||target>=state.createStops.length)return;const arr=state.createStops;[arr[index],arr[target]]=[arr[target],arr[index]];persist();renderCreate()}
-function saveStartAndCreate(){const input=document.getElementById("start-input");if(input)state.createStart=input.value.trim();persist();addCustomRoute()}
-function markCompleted(id){const route=state.routes.find(r=>r.id===id);if(!route)return;route.completed=true;persist();toast("Giro segnato come completato")}
-function escapeHtml(str){return String(str).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#39;")}
-function render(){renderHome();renderDetail();renderCreate();renderSaved();renderMap();renderProfile()}
-function closeOnboarding(){document.getElementById("onboarding").classList.remove("show")}
-function startBeta(){state.hasSeenOnboarding=true;persist();closeOnboarding()}
+function renderHome(){
+  const filters=["Tutti","Breve","Mezza giornata","Giornata intera"];
+  const filtered=state.filter==="Tutti"?state.routes:state.routes.filter(r=>r.type===state.filter);
+  const favorites=state.routes.filter(r=>r.favorite).length;
+  screenEls.home.innerHTML=`<div class="header"><div class="row"><div><div class="eyebrow">Curve</div><div class="title">Trova il tuo prossimo giro</div><div class="subtitle">Percorsi pensati per chi vive la moto davvero</div></div><div class="top-action" style="background:rgba(249,115,22,.12); border-color:rgba(249,115,22,.25)">🏍️</div></div></div><div class="content"><div class="card"><div class="row" style="align-items:flex-start"><div><p style="color:var(--muted); font-size:14px;">Vicino a te</p><h2 style="margin-top:6px; font-size:22px;">Giri consigliati per oggi</h2></div><span class="badge">● Maps live</span></div><div class="pill-row" style="margin-top:14px;">${filters.map(f=>`<button class="pill ${state.filter===f?"active":""}" onclick="setFilter('${f}')">${f}</button>`).join("")}</div></div><div class="stat-grid"><div class="card"><p style="font-size:14px; color:var(--muted)">I tuoi numeri</p><p style="margin-top:10px; font-size:32px; font-weight:800;">${state.routes.filter(r=>r.completed).reduce((s,r)=>s+r.distance,0)}</p><p class="small-note">km completati</p></div><div class="card"><p style="font-size:14px; color:var(--muted)">Salvati</p><p style="margin-top:10px; font-size:32px; font-weight:800;">${favorites}</p><p class="small-note">giri nei preferiti</p></div></div>${filtered.map(routeCard).join("")}</div>`;
+}
+function renderDetail(){
+  const route=selectedRoute();
+  screenEls.detail.innerHTML=`<div class="header"><div class="header-left"><button class="top-action" onclick="go('home')">←</button><div><div class="eyebrow">Dettaglio giro</div><div class="title">${route.name}</div><div class="subtitle">${route.region} • ${route.type}</div></div></div></div><div class="content"><div class="route-hero card"><div><span class="chip">${route.level}</span><span class="chip">${route.curves} curve</span><span class="chip">${route.distance} km</span><h2 style="margin-top:12px; font-size:26px;">${route.name}</h2><p class="subtitle" style="color:#e4e4e7;">${route.shortDescription}</p></div></div><div class="metrics two"><div class="metric"><div class="label">Distanza</div><div class="value">${route.distance} km</div></div><div class="metric"><div class="label">Durata</div><div class="value">${route.duration}</div></div><div class="metric"><div class="label">Dislivello</div><div class="value">${route.elevation}</div></div><div class="metric"><div class="label">Fondo</div><div class="value">${route.surface}</div></div></div><div class="card"><p style="font-size:14px; color:var(--muted)">Mappa del giro</p><h3 style="margin-top:6px; font-size:20px;">Tracciato completo</h3><div class="leaflet-wrap small"><div id="detailMap"></div></div></div><div class="card"><p style="font-size:14px; color:var(--muted)">Descrizione</p><p class="desc">${route.description}</p></div><div class="card"><p style="font-size:14px; color:var(--muted)">Punti forti</p><div class="highlight-list">${route.highlights.map(item=>`<div class="highlight"><div class="check">✓</div><div style="line-height:1.55; color:#d4d4d8; font-size:14px;">${item}</div></div>`).join("")}</div></div><div class="card"><p style="font-size:14px; color:var(--muted)">Tappe</p><h3 style="margin-top:6px; font-size:20px;">Roadbook rapido</h3><div class="roadbook">${route.stops.map((stop,index)=>`<div class="step"><div class="step-col"><div class="step-num">${index+1}</div>${index!==route.stops.length-1?`<div class="step-line"></div>`:``}</div><div class="step-box"><div style="font-weight:700;">${stop}</div><div class="small-note">Tappa del percorso</div></div></div>`).join("")}</div></div><div class="btn-grid three"><button class="btn primary" onclick="markCompleted(${route.id})">Completato</button><button class="btn secondary" onclick="toggleFavorite(${route.id})">${route.favorite?"Salvato":"Salva"}</button><button class="btn secondary" onclick="toast('Link giro condiviso')">Condividi</button></div></div>`;
+}
+function renderCreate(){
+  const dist=80+state.createStops.length*35; const hrs=(dist/45).toFixed(1);
+  screenEls.create.innerHTML=`<div class="header"><div><div class="eyebrow">Crea giro</div><div class="title">Costruisci percorso</div><div class="subtitle">Partenza, tappe e condivisione</div></div></div><div class="content"><div class="card"><p style="font-size:14px; color:var(--muted)">Partenza</p><input id="start-input" value="${escapeHtml(state.createStart)}" placeholder="Inserisci partenza" /></div><div class="card"><p style="font-size:14px; color:var(--muted)">Aggiungi tappa</p><h3 style="margin-top:6px; font-size:20px;">Roadmap del giro</h3><div class="inline-form" style="margin-top:14px;"><input id="stop-input" placeholder="Es. Barolo" /><button class="btn primary" onclick="addStop()">Aggiungi</button></div><div class="suggestions">${suggestionStops.map(s=>`<button class="suggestion" onclick="fillStop('${s}')">${s}</button>`).join("")}</div><div class="stop-list" style="margin-top:14px;">${state.createStops.map((stop,i)=>`<div class="stop-item"><div><div style="font-weight:700">${stop}</div><div class="small-note">Tappa ${i+1}</div></div><div style="display:flex; gap:6px;"><button class="top-action" style="width:36px;height:36px;border-radius:12px;" onclick="moveStop(${i},-1)">↑</button><button class="top-action" style="width:36px;height:36px;border-radius:12px;" onclick="moveStop(${i},1)">↓</button><button class="top-action" style="width:36px;height:36px;border-radius:12px;" onclick="removeStop(${i})">×</button></div></div>`).join("")}</div></div><div class="card"><p style="font-size:14px; color:var(--muted)">Anteprima percorso</p><h3 style="margin-top:6px; font-size:20px;">Tracciato stimato</h3><div class="leaflet-wrap small"><div id="createMap"></div></div></div><div class="card"><p style="font-size:14px; color:var(--muted)">Totale stimato</p><p style="margin-top:10px; font-size:28px; font-weight:800;">~${dist} km • ${hrs}h</p><p class="small-note">Giro perfetto per una ${dist>160?"giornata intera":"mezza giornata"}</p></div><div class="btn-grid"><button class="btn primary" onclick="saveStartAndCreate()">Salva giro</button><button class="btn secondary" onclick="toast('Demo: link condiviso')">Condividi</button></div></div>`;
+  const startInput=document.getElementById("start-input");
+  if(startInput) startInput.addEventListener("input",e=>{ state.createStart=e.target.value; persist(); renderCreateMapOnly(); });
+}
+function renderSaved(){
+  const favorites=state.routes.filter(r=>r.favorite);
+  screenEls.saved.innerHTML=`<div class="header"><div><div class="eyebrow">Salvati</div><div class="title">I tuoi giri preferiti</div><div class="subtitle">Pronti da rifare quando vuoi</div></div></div><div class="content">${favorites.length===0?`<div class="card empty"><h3>Nessun giro salvato</h3><p class="subtitle">Salva i tuoi percorsi preferiti dalla home o dal dettaglio.</p></div>`:favorites.map(route=>`<button class="saved-item" onclick="selectRoute(${route.id})"><div style="text-align:left;"><div style="font-size:18px; font-weight:700;">${route.name}</div><div class="small-note">${route.distance} km • ${route.duration} • ${route.region}</div></div><div style="color:var(--accent-soft); font-size:18px;">♥</div></button>`).join("")}</div>`;
+}
+function renderMap(){
+  screenEls.map.innerHTML=`<div class="header"><div><div class="eyebrow">Mappa</div><div class="title">Esplora i giri</div><div class="subtitle">Vista rapida dei percorsi disponibili</div></div></div><div class="content"><div class="card"><div class="row"><div><p style="font-size:14px; color:var(--muted)">Mappa reale</p><h3 style="margin-top:6px; font-size:20px;">Percorsi disponibili</h3></div><button class="btn secondary" style="padding:10px 12px" onclick="locateMe()">La mia posizione</button></div><div class="leaflet-wrap"><div id="exploreMap"></div></div></div>${state.routes.map(route=>`<button class="map-item" onclick="selectRoute(${route.id})"><div style="text-align:left;"><div style="font-size:18px; font-weight:700;">${route.name}</div><div class="small-note">${route.distance} km • ${route.level} • ${route.region}</div></div><div>→</div></button>`).join("")}</div>`;
+}
+function renderProfile(){
+  const completed=state.routes.filter(r=>r.completed).length; const totalKm=state.routes.filter(r=>r.completed).reduce((sum,r)=>sum+r.distance,0);
+  screenEls.profile.innerHTML=`<div class="header"><div><div class="eyebrow">Profilo</div><div class="title">Fabio</div><div class="subtitle">Rider level: creator mode</div></div></div><div class="content"><div class="card"><div class="row" style="justify-content:flex-start;"><div class="top-action" style="width:64px;height:64px;border-radius:22px;background:rgba(249,115,22,.12);border-color:rgba(249,115,22,.25)">🏍️</div><div><div style="font-size:22px; font-weight:700;">Curve Rider</div><div class="small-note">Creator, esploratore, maniaco dei giri belli</div></div></div></div><div class="metrics two"><div class="metric"><div class="label">Giri completati</div><div class="value" style="font-size:28px;">${completed}</div></div><div class="metric"><div class="label">Km totali</div><div class="value" style="font-size:28px;">${totalKm}</div></div></div><div class="card"><p style="font-size:14px; color:var(--muted)">Beta controls</p><div class="btn-grid" style="margin-top:12px"><button class="btn secondary" onclick="toast('Storage attivo nel browser')">Storage attivo</button><button class="btn secondary" onclick="resetBeta()">Reset beta</button></div></div></div>`;
+}
+function setFilter(filter){ state.filter=filter; persist(); renderHome(); }
+function fillStop(stop){ const input=document.getElementById("stop-input"); if(input) input.value=stop; }
+function addStop(){ const input=document.getElementById("stop-input"); if(!input) return; const value=input.value.trim(); if(!value) return toast("Scrivi una tappa"); state.createStops.push(value); persist(); input.value=""; renderCreate(); attachMaps(); toast("Tappa aggiunta"); }
+function removeStop(index){ state.createStops.splice(index,1); persist(); renderCreate(); attachMaps(); }
+function moveStop(index,dir){ const target=index+dir; if(target<0||target>=state.createStops.length) return; const arr=state.createStops; [arr[index],arr[target]]=[arr[target],arr[index]]; persist(); renderCreate(); attachMaps(); }
+function saveStartAndCreate(){ const input=document.getElementById("start-input"); if(input) state.createStart=input.value.trim(); persist(); addCustomRoute(); }
+function markCompleted(id){ const route=state.routes.find(r=>r.id===id); if(!route) return; route.completed=true; persist(); toast("Giro segnato come completato"); }
+function escapeHtml(str){ return String(str).replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#39;"); }
+function closeOnboarding(){ document.getElementById("onboarding").classList.remove("show"); }
+function startBeta(){ state.hasSeenOnboarding=true; persist(); closeOnboarding(); }
+function getCreateCoords(){
+  return [SUGGESTION_COORDS[state.createStart] || [45.4642,9.19], ...state.createStops.map(s=>SUGGESTION_COORDS[s] || [45.4642,9.19])];
+}
+function baseMap(elId){
+  if(leafletMaps[elId]){ leafletMaps[elId].remove(); delete leafletMaps[elId]; }
+  const map=L.map(elId,{zoomControl:true});
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
+    maxZoom:19,
+    attribution:'&copy; OpenStreetMap contributors'
+  }).addTo(map);
+  leafletMaps[elId]=map;
+  return map;
+}
+function drawRouteMap(elId, route, opts={}){
+  const map=baseMap(elId);
+  const coords=route.coords && route.coords.length ? route.coords : [[45.4642,9.19]];
+  const poly=L.polyline(coords,{color:"#f97316",weight:5,opacity:0.9}).addTo(map);
+  coords.forEach((c,i)=>{
+    L.marker(c).addTo(map).bindPopup(`<b>${route.stops[i] || route.name}</b>`);
+  });
+  map.fitBounds(poly.getBounds(),{padding:[20,20]});
+  if(opts.userLocation){
+    L.circleMarker(opts.userLocation,{radius:8,color:"#22c55e",fillColor:"#22c55e",fillOpacity:0.9}).addTo(map).bindPopup("La tua posizione");
+  }
+  setTimeout(()=>map.invalidateSize(),80);
+}
+function drawExploreMap(){
+  const map=baseMap("exploreMap");
+  const group=[];
+  state.routes.forEach(route=>{
+    const coords=route.coords || [];
+    if(coords.length){
+      const poly=L.polyline(coords,{color:"#f97316",weight:4,opacity:0.75}).addTo(map);
+      poly.on("click",()=>selectRoute(route.id));
+      L.marker(coords[0]).addTo(map).bindPopup(`<b>${route.name}</b><br>${route.distance} km`);
+      group.push(poly);
+    }
+  });
+  if(state.userLocation){
+    L.circleMarker(state.userLocation,{radius:8,color:"#22c55e",fillColor:"#22c55e",fillOpacity:0.9}).addTo(map).bindPopup("La tua posizione");
+  }
+  if(group.length){
+    const fg=L.featureGroup(group);
+    map.fitBounds(fg.getBounds(),{padding:[25,25]});
+  } else {
+    map.setView([45.5,9.2],7);
+  }
+  setTimeout(()=>map.invalidateSize(),80);
+}
+function renderCreateMapOnly(){
+  if(!document.getElementById("createMap")) return;
+  const map=baseMap("createMap");
+  const coords=getCreateCoords();
+  const poly=L.polyline(coords,{color:"#f97316",weight:5,opacity:0.9}).addTo(map);
+  coords.forEach((c,i)=>L.marker(c).addTo(map).bindPopup(i===0?`<b>Partenza</b><br>${state.createStart}`:`<b>Tappa ${i}</b><br>${state.createStops[i-1] || ""}`));
+  map.fitBounds(poly.getBounds(),{padding:[20,20]});
+  setTimeout(()=>map.invalidateSize(),80);
+}
+function locateMe(){
+  if(!navigator.geolocation) return toast("Geolocalizzazione non supportata");
+  navigator.geolocation.getCurrentPosition(
+    pos=>{
+      state.userLocation=[pos.coords.latitude,pos.coords.longitude];
+      persist();
+      renderMap();
+      attachMaps();
+      toast("Posizione trovata");
+    },
+    ()=>toast("Impossibile ottenere la posizione"),
+    {enableHighAccuracy:true,timeout:7000}
+  );
+}
+function attachMaps(){
+  if(document.getElementById("detailMap")) drawRouteMap("detailMap", selectedRoute(), {userLocation: state.userLocation});
+  if(document.getElementById("exploreMap")) drawExploreMap();
+  if(document.getElementById("createMap")) renderCreateMapOnly();
+}
+function render(){ renderHome(); renderDetail(); renderCreate(); renderSaved(); renderMap(); renderProfile(); setTimeout(attachMaps,30); }
+
 document.querySelectorAll(".nav button").forEach(btn=>btn.addEventListener("click",()=>go(btn.dataset.nav)));
-window.go=go;window.selectRoute=selectRoute;window.toggleFavorite=toggleFavorite;window.setFilter=setFilter;window.fillStop=fillStop;window.addStop=addStop;window.removeStop=removeStop;window.moveStop=moveStop;window.saveStartAndCreate=saveStartAndCreate;window.toast=toast;window.resetBeta=resetBeta;window.closeOnboarding=closeOnboarding;window.startBeta=startBeta;window.markCompleted=markCompleted;
+window.go=go; window.selectRoute=selectRoute; window.toggleFavorite=toggleFavorite; window.setFilter=setFilter; window.fillStop=fillStop; window.addStop=addStop; window.removeStop=removeStop; window.moveStop=moveStop; window.saveStartAndCreate=saveStartAndCreate; window.toast=toast; window.resetBeta=resetBeta; window.closeOnboarding=closeOnboarding; window.startBeta=startBeta; window.markCompleted=markCompleted; window.locateMe=locateMe;
 render();
-if(!state.hasSeenOnboarding){document.getElementById("onboarding").classList.add("show")}
+if(!state.hasSeenOnboarding){ document.getElementById("onboarding").classList.add("show"); }
 </script>
 </body>
 </html>
